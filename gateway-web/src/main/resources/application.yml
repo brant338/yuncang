@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: gateway-web
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]': # 匹配所有请求
+           allowedOrigins: "*" #跨域处理,允许所有的域
+           allowedHeaders: "*" #允许所有的请求头携带过来
+           allowedMethods: #支持的方法
+             - GET
+             - POST
+             - PUT
+             - DELETE
+      routes:
+        - id: changgou_goods_route # 当访问的域名为cloud.itheima.com 开头的 时候转发请求给18081
+          uri: http://localhost:18081          #lb://goods #负载均衡
+          predicates:
+            #            - Host=cloud.itheima.com** # 表示：请求是http://cloud.itheima.com:8001/brand/1115 -->转发给http://localhost:18081/brand/1115
+            #            - Path=/brand/** # 当请求以/brand开头的路径时候，将请求转发给18081
+            - Path=/api/album/**,/api/brand/**,/api/categoryBrand/**,/api/category/**,/api/para/**,/api/pref/**,/api/sku/**,/api/spec/**,/api/spu/**,/api/stockBack/**,/api/template/**
+          filters:
+            #            - PrefixPath=/brand # 表示 当请求 http://localhost:8001/1115-->http://localhost:18081/brand/1115
+            - StripPrefix=1 # 表示 当请求 http://localhost:8001/api/brand/1115 -->http://localhost:18081/brand/1115
+            - name: RequestRateLimiter #请求数限流 名字不能随便写 ，使用默认的facatory
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 1
+        - id: changgou_user_route
+          uri: http://localhost:18089 #lb://user
+          predicates:
+            - Path=/api/user/**,/api/address/**,/api/areas/**,/api/cities/**,/api/provinces/**
+          filters:
+            - StripPrefix=1  # http://localhost:8001/api/user/1115 --->http://localhost:18089/user/1115
+        - id: changgou_weixin_pay_route
+          uri: http://localhost:18092 #lb://user
+          predicates:
+            - Path=/api/weixin/pay/**
+          filters:           # http://localhost:8001/api/weixin/pay?out_trade_no=NO10000009&total_fee=1
+            - StripPrefix=1  # http://localhost:18082/weixin/pay?out_trade_no=NO10000009&total_fee=1
+#配置redis
+redis:
+  host: 192.168.211.132
+  port: 6379
+#配置port
+server:
+  port: 8001
+#配置eureka客户端
+eureka:
+  client:
+    service-url:
+      defaultZone: http://127.0.0.1:7001/eureka
+  instance:
+    prefer-ip-address: true
